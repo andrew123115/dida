@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>iOS 多功能格線行事曆</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter & SF Pro fallback -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['-apple-system', 'BlinkMacSystemFont', 'Inter', 'SF Pro Text', 'Segoe UI', 'Roboto', 'sans-serif'],
+                    },
+                    colors: {
+                        ios: {
+                            bg: '#f2f2f7',
+                            card: 'rgba(255, 255, 255, 0.75)',
+                            darkCard: 'rgba(28, 28, 30, 0.75)',
+                            blue: '#007aff',
+                            green: '#34c759',
+                            red: '#ff3b30',
+                            purple: '#af52de',
+                            orange: '#ff9500',
+                            yellow: '#ffcc00'
+                        }
+                    },
+                    boxShadow: {
+                        'ios-glass': '0 8px 32px 0 rgba(0, 0, 0, 0.08)',
+                        'ios-card': '0 4px 20px 0 rgba(0, 0, 0, 0.05)',
+                        'ios-float': '0 12px 36px 0 rgba(0, 0, 0, 0.15)'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* iOS Glassmorphism and Custom Styles */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.78);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+        .dark .glass-panel {
+            background: rgba(30, 30, 35, 0.78);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        .dark .glass-card {
+            background: rgba(40, 40, 45, 0.65);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(150, 150, 150, 0.3);
+            border-radius: 999px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        /* Background Wallpaper Container */
+        #app-bg-layer {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background-size: cover;
+            background-position: center;
+            transition: all 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body class="h-full bg-slate-100 text-slate-800 dark:text-slate-100 antialiased selection:bg-blue-500 selection:text-white">
+
+    <!-- Background Layer for Wallpapers -->
+    <div id="app-bg-layer" class="bg-gradient-to-br from-slate-100 via-sky-50 to-indigo-100"></div>
+
+    <!-- Main Container -->
+    <div class="min-h-screen flex flex-col max-w-5xl mx-auto px-3 sm:px-6 pb-12 pt-3 sm:pt-6">
+
+        <!-- Top Navigation Header -->
+        <header class="glass-panel sticky top-2 z-30 rounded-3xl p-3 sm:p-4 shadow-ios-glass mb-4 transition-all">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                
+                <!-- Left: Title & Month Picker Navigation -->
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-600 text-white flex items-center justify-center shadow-md">
+                        <i class="fa-solid me-0 fa-calendar-days text-xl"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h1 id="current-month-display" class="text-xl sm:text-2xl font-bold tracking-tight">2026年 9月</h1>
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-300">iOS 獨立版</span>
+                        </div>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">已整合您所有的行程與事項</p>
+                    </div>
+                </div>
+
+                <!-- Center/Right Controls & Fast Action Buttons -->
+                <div class="flex items-center space-x-2 ml-auto">
+                    <!-- Date Quick Nav -->
+                    <div class="flex items-center bg-slate-200/60 dark:bg-slate-700/60 p-1 rounded-2xl backdrop-blur-md">
+                        <button onclick="changeMonth(-1)" class="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-white dark:hover:bg-slate-600 transition active:scale-95">
+                            <i class="fa-solid fa-chevron-left text-xs"></i>
+                        </button>
+                        <button onclick="goToToday()" class="px-2.5 py-1 text-xs font-medium hover:bg-white dark:hover:bg-slate-600 rounded-xl transition active:scale-95">
+                            今天
+                        </button>
+                        <button onclick="changeMonth(1)" class="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-white dark:hover:bg-slate-600 transition active:scale-95">
+                            <i class="fa-solid fa-chevron-right text-xs"></i>
+                        </button>
+                    </div>
+
+                    <!-- Explicit Background Customization Button -->
+                    <button onclick="openBackgroundModal()" class="flex items-center space-x-1.5 px-3 py-2 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white text-xs font-medium rounded-2xl shadow-md transition transform active:scale-95">
+                        <i class="fa-solid fa-palette"></i>
+                        <span class="hidden sm:inline">換背景</span>
+                    </button>
+
+                    <!-- Add Task Quick Button -->
+                    <button onclick="openTaskModal()" class="flex items-center space-x-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-2xl shadow-md transition transform active:scale-95">
+                        <i class="fa-solid fa-plus text-xs"></i>
+                        <span class="hidden sm:inline">新增行程</span>
+                    </button>
+
+                    <!-- Action Menu Button -->
+                    <div class="relative">
+                        <button onclick="toggleActionMenu()" class="w-9 h-9 rounded-2xl bg-slate-200/80 dark:bg-slate-700/80 hover:bg-slate-300 dark:hover:bg-slate-600 flex items-center justify-center transition active:scale-95">
+                            <i class="fa-solid fa-ellipsis text-sm"></i>
+                        </button>
+
+                        <!-- Dropdown Menu -->
+                        <div id="action-menu" class="hidden absolute right-0 mt-2 w-48 glass-panel rounded-2xl shadow-ios-float p-1.5 z-50 text-xs space-y-1 border border-white/40">
+                            <button onclick="openBackgroundModal(); toggleActionMenu();" class="w-full text-left px-3 py-2 rounded-xl hover:bg-blue-50 dark:hover:bg-slate-700 flex items-center space-x-2 text-slate-700 dark:text-slate-200">
+                                <i class="fa-solid fa-palette text-pink-500 w-4"></i>
+                                <span>🎨 自訂背景風格</span>
+                            </button>
+                            <button onclick="openStickerModal(); toggleActionMenu();" class="w-full text-left px-3 py-2 rounded-xl hover:bg-blue-50 dark:hover:bg-slate-700 flex items-center space-x-2 text-slate-700 dark:text-slate-200">
+                                <i class="fa-solid fa-icons text-amber-500 w-4"></i>
+                                <span>🏷️ 日曆貼圖管理</span>
+                            </button>
+                            <button onclick="exportDataData(); toggleActionMenu();" class="w-full text-left px-3 py-2 rounded-xl hover:bg-blue-50 dark:hover:bg-slate-700 flex items-center space-x-2 text-slate-700 dark:text-slate-200">
+                                <i class="fa-solid fa-file-export text-emerald-500 w-4"></i>
+                                <span>📤 匯出 JSON 備份</span>
+                            </button>
+                            <button onclick="triggerImportJSON(); toggleActionMenu();" class="w-full text-left px-3 py-2 rounded-xl hover:bg-blue-50 dark:hover:bg-slate-700 flex items-center space-x-2 text-slate-700 dark:text-slate-200">
+                                <i class="fa-solid fa-file-import text-indigo-500 w-4"></i>
+                                <span>📥 匯入 JSON 備份</span>
+                            </button>
+                            <hr class="border-slate-200/60 dark:border-slate-700 my-1">
+                            <button onclick="resetToDefaultData(); toggleActionMenu();" class="w-full text-left px-3 py-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/30 flex items-center space-x-2 text-red-600 dark:text-red-400">
+                                <i class="fa-solid fa-rotate-left w-4"></i>
+                                <span>重設為預設 22 筆行程</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Segmented Control Tabs (iOS Style) -->
+            <div class="mt-3 bg-slate-200/70 dark:bg-slate-800/70 p-1 rounded-2xl flex text-xs font-medium shadow-inner">
+                <button id="tab-month" onclick="switchTab('month')" class="flex-1 py-2 rounded-xl text-center transition-all duration-200 shadow-sm bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 font-semibold">
+                    <i class="fa-regular fa-calendar text-xs mr-1.5"></i>月檢視
+                </button>
+                <button id="tab-week" onclick="switchTab('week')" class="flex-1 py-2 rounded-xl text-center transition-all duration-200 text-slate-600 dark:text-slate-400 hover:text-slate-900">
+                    <i class="fa-solid fa-list-check text-xs mr-1.5"></i>本週待辦
+                </button>
+                <button id="tab-categories" onclick="switchTab('categories')" class="flex-1 py-2 rounded-xl text-center transition-all duration-200 text-slate-600 dark:text-slate-400 hover:text-slate-900">
+                    <i class="fa-solid fa-chart-pie text-xs mr-1.5"></i>標籤獨立統整
+                </button>
+            </div>
+        </header>
+
+        <!-- Hidden JSON File Input for Import -->
+        <input type="file" id="json-file-input" class="hidden" accept=".json" onchange="importDataFile(event)">
+
+        <!-- VIEW 1: MONTH CALENDAR GRID VIEW -->
+        <main id="view-month" class="space-y-4 flex-1">
+            
+            <!-- Calendar Container -->
+            <div class="glass-panel rounded-3xl p-3 sm:p-5 shadow-ios-glass">
+                
+                <!-- Weekday Headers -->
+                <div class="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                    <div class="text-rose-500">日</div>
+                    <div>一</div>
+                    <div>二</div>
+                    <div>三</div>
+                    <div>四</div>
+                    <div>五</div>
+                    <div class="text-indigo-500">六</div>
+                </div>
+
+                <!-- Month Grid Cells -->
+                <div id="calendar-grid" class="grid grid-cols-7 gap-1.5 sm:gap-2">
+                    <!-- Javascript will generate date cells here -->
+                </div>
+            </div>
+
+            <!-- Selected Date Agenda / Task List Sheet -->
+            <div class="glass-panel rounded-3xl p-4 sm:p-5 shadow-ios-glass transition-all">
+                <div class="flex items-center justify-between border-b border-slate-200/50 dark:border-slate-700/50 pb-3 mb-3">
+                    <div class="flex items-center space-x-2">
+                        <span id="selected-date-title" class="font-bold text-base sm:text-lg">2026年 9月 21日 事項明細</span>
+                        <span id="selected-date-sticker-display" class="text-lg"></span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="openStickerPickerForSelectedDate()" class="px-2.5 py-1 text-xs bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 rounded-xl hover:bg-amber-200 transition">
+                            <i class="fa-solid fa-face-smile mr-1"></i>加貼圖
+                        </button>
+                        <button onclick="openTaskModalWithDate()" class="px-2.5 py-1 text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 rounded-xl hover:bg-blue-200 transition">
+                            <i class="fa-solid fa-plus mr-1"></i>新增
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Agenda Task Items -->
+                <div id="selected-date-tasks" class="space-y-2 min-h-[100px]">
+                    <!-- Tasks rendered here -->
+                </div>
+            </div>
+
+        </main>
+
+        <!-- VIEW 2: WEEKLY TO-DO VIEW -->
+        <main id="view-week" class="hidden space-y-4 flex-1">
+            <div class="glass-panel rounded-3xl p-4 sm:p-5 shadow-ios-glass">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="font-bold text-lg flex items-center">
+                        <i class="fa-solid fa-calendar-week text-blue-500 mr-2"></i>本週行程規劃
+                    </h2>
+                    <span id="week-range-label" class="text-xs text-slate-500 font-medium">9/21 ~ 9/27</span>
+                </div>
+
+                <div id="weekly-tasks-container" class="space-y-4">
+                    <!-- Javascript generates weekly grouped items -->
+                </div>
+            </div>
+        </main>
+
+        <!-- VIEW 3: CATEGORY SUMMARIES -->
+        <main id="view-categories" class="hidden space-y-4 flex-1">
+            <!-- Category Cards Grid -->
+            <div id="category-summary-cards" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Important Section -->
+                <!-- Personal Section -->
+                <!-- Learning Section -->
+            </div>
+
+            <!-- Detailed Category List Accordions -->
+            <div class="glass-panel rounded-3xl p-4 sm:p-5 shadow-ios-glass space-y-4">
+                <h2 class="font-bold text-lg mb-2">待辦事項詳細清單</h2>
+                
+                <!-- Filter Tabs -->
+                <div class="flex space-x-2 mb-3 text-xs">
+                    <button onclick="filterCategoryList('all')" id="cat-filter-all" class="px-3 py-1.5 rounded-xl bg-slate-800 text-white font-medium">全部</button>
+                    <button onclick="filterCategoryList('pending')" id="cat-filter-pending" class="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium">未完成</button>
+                    <button onclick="filterCategoryList('completed')" id="cat-filter-completed" class="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium">已完成</button>
+                </div>
+
+                <div id="category-accordion-list" class="space-y-3">
+                    <!-- Detailed task list per category -->
+                </div>
+            </div>
+        </main>
+
+    </div>
+
+    <!-- MODAL 1: ADD / EDIT TASK -->
+    <div id="modal-task" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+        <div class="glass-panel w-full max-w-md rounded-3xl p-5 shadow-ios-float border border-white/60 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-200/60 pb-3">
+                <h3 id="modal-task-title" class="font-bold text-lg">新增行程 / 事項</h3>
+                <button onclick="closeTaskModal()" class="w-8 h-8 rounded-full bg-slate-200/60 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form id="task-form" onsubmit="saveTask(event)" class="space-y-3 text-xs sm:text-sm">
+                <input type="hidden" id="task-id">
+                
+                <div>
+                    <label class="block font-medium mb-1 text-slate-600 dark:text-slate-300">事項名稱 *</label>
+                    <input type="text" id="task-input-title" required placeholder="例如：鋼琴課、繳交作業..." class="w-full px-3 py-2.5 rounded-2xl bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-medium mb-1 text-slate-600 dark:text-slate-300">日期 *</label>
+                        <input type="date" id="task-input-date" required class="w-full px-3 py-2.5 rounded-2xl bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-1 text-slate-600 dark:text-slate-300">時間 (選填)</label>
+                        <input type="time" id="task-input-time" class="w-full px-3 py-2.5 rounded-2xl bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-medium mb-1 text-slate-600 dark:text-slate-300">分類標籤 *</label>
+                    <select id="task-input-category" class="w-full px-3 py-2.5 rounded-2xl bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                        <option value="important">🔴 重要 (緊急/關健節點)</option>
+                        <option value="learning">🟣 學業 (功課/考試/閱讀)</option>
+                        <option value="personal">🟢 個人 (興趣/社團/約會)</option>
+                        <option value="work">🔵 工作 (職業/專案)</option>
+                        <option value="other">🟡 其他事項</option>
+                    </select>
+                </div>
+
+                <div class="pt-3 flex justify-end space-x-2">
+                    <button type="button" onclick="closeTaskModal()" class="px-4 py-2 rounded-2xl bg-slate-200 dark:bg-slate-700 font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-300 transition">取消</button>
+                    <button type="submit" class="px-5 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-md transition">儲存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2: CUSTOM BACKGROUND MANAGER -->
+    <div id="modal-background" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+        <div class="glass-panel w-full max-w-md rounded-3xl p-5 shadow-ios-float border border-white/60 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-200/60 pb-3">
+                <h3 class="font-bold text-lg flex items-center">
+                    <i class="fa-solid fa-palette text-pink-500 mr-2"></i>自訂背景風格
+                </h3>
+                <button onclick="closeBackgroundModal()" class="w-8 h-8 rounded-full bg-slate-200/60 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Preset Wallpapers -->
+            <div>
+                <label class="block font-semibold mb-2 text-xs text-slate-500 uppercase tracking-wider">內建預設桌布</label>
+                <div class="grid grid-cols-3 gap-2.5">
+                    <button onclick="applyBgPreset('light')" class="h-16 rounded-2xl bg-gradient-to-br from-slate-100 via-sky-50 to-indigo-100 border-2 border-white shadow-sm flex items-center justify-center text-xs font-semibold text-slate-700 hover:scale-105 transition">
+                        iOS 淺灰
+                    </button>
+                    <button onclick="applyBgPreset('aurora')" class="h-16 rounded-2xl bg-gradient-to-br from-teal-200 via-indigo-200 to-pink-200 border-2 border-white shadow-sm flex items-center justify-center text-xs font-semibold text-slate-700 hover:scale-105 transition">
+                        極光夢幻
+                    </button>
+                    <button onclick="applyBgPreset('sunset')" class="h-16 rounded-2xl bg-gradient-to-br from-rose-300 via-purple-300 to-indigo-400 border-2 border-white shadow-sm flex items-center justify-center text-xs font-semibold text-white hover:scale-105 transition">
+                        柔粉夕陽
+                    </button>
+                    <button onclick="applyBgPreset('dark')" class="h-16 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 border-2 border-slate-700 shadow-sm flex items-center justify-center text-xs font-semibold text-white hover:scale-105 transition">
+                        深色極簡
+                    </button>
+                    <button onclick="applyBgPreset('mint')" class="h-16 rounded-2xl bg-gradient-to-br from-emerald-100 via-teal-100 to-cyan-200 border-2 border-white shadow-sm flex items-center justify-center text-xs font-semibold text-slate-700 hover:scale-105 transition">
+                        薄荷清新
+                    </button>
+                    <button onclick="applyBgPreset('macaron')" class="h-16 rounded-2xl bg-gradient-to-br from-amber-100 via-pink-100 to-purple-100 border-2 border-white shadow-sm flex items-center justify-center text-xs font-semibold text-slate-700 hover:scale-105 transition">
+                        馬卡龍
+                    </button>
+                </div>
+            </div>
+
+            <!-- Upload Custom Photo -->
+            <div class="pt-2 border-t border-slate-200/60 dark:border-slate-700">
+                <label class="block font-semibold mb-2 text-xs text-slate-500 uppercase tracking-wider">自訂照片桌布</label>
+                <label class="w-full h-24 border-2 border-dashed border-blue-400 hover:border-blue-600 rounded-2xl flex flex-col items-center justify-center cursor-pointer bg-blue-50/50 dark:bg-slate-800/50 transition">
+                    <i class="fa-solid fa-cloud-arrow-up text-2xl text-blue-500 mb-1"></i>
+                    <span class="text-xs font-medium text-blue-600 dark:text-blue-400">點擊上傳自訂背景照片</span>
+                    <span class="text-[10px] text-slate-400">支援 JPG / PNG 相片格式</span>
+                    <input type="file" accept="image/*" class="hidden" onchange="uploadCustomBackground(event)">
+                </label>
+            </div>
+
+            <div class="pt-2 flex justify-end">
+                <button onclick="closeBackgroundModal()" class="px-5 py-2 rounded-2xl bg-blue-600 text-white font-medium text-xs shadow-md hover:bg-blue-700 transition">完成</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: STICKER SYSTEM -->
+    <div id="modal-sticker" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+        <div class="glass-panel w-full max-w-md rounded-3xl p-5 shadow-ios-float border border-white/60 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-200/60 pb-3">
+                <h3 class="font-bold text-lg flex items-center">
+                    <i class="fa-solid fa-icons text-amber-500 mr-2"></i>為日期貼上貼圖
+                </h3>
+                <button onclick="closeStickerModal()" class="w-8 h-8 rounded-full bg-slate-200/60 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Emoji Presets -->
+            <div>
+                <label class="block font-semibold mb-2 text-xs text-slate-500">選擇內建表情貼圖</label>
+                <div class="grid grid-cols-5 gap-2 text-2xl">
+                    <button onclick="applySticker('⭐')" class="p-2 rounded-2xl hover:bg-white/80 dark:hover:bg-slate-700 transition">⭐</button>
+                    <button onclick="applySticker('🎉')" class="p-2 rounded-2xl hover:bg-white/80 dark:hover:bg-slate-700 transition">🎉</button>
+                    <button onclick="applySticker('🎂')" class="p-2 rounded-2xl hover:bg-white/80 dark:hover:bg-slate-700 transition">🎂</button>
+                    <button onclick="applySticker('🎹')" class="p-2 rounded-2xl hover:bg-white/80 dark:hover:bg-slate-700 transition">🎹</button>
+                    <button onclick="applySticker('📚')" class="p-2 rounded-2xl hover:bg-white/80 dark:hover:bg-slate-700 transition">📚</button>
+                    <button onclick="applySticker('✈️')" class="p-2 rounded-2xl hover:bg-white/80 dark:hover:bg-slate-700 transition">✈️</button>
+                    <button onclick="applySticker('🔥')" class="p-2 rounded-2xl hover:bg-white/80 dark:hover:bg-slate-700 transition">🔥</button>
+                    <button onclick="applySticker('💡')" class="p-2 rounded-2xl hover:bg-white/80 dark:hover:bg-slate-700 transition">💡</button>
+                    <button onclick="applySticker('☕')" class="p-2 rounded-2xl hover:bg-white/80 dark:hover:bg-slate-700 transition">☕</button>
+                    <button onclick="applySticker('❤️')" class="p-2 rounded-2xl hover:bg-white/80 dark:hover:bg-slate-700 transition">❤️</button>
+                </div>
+            </div>
+
+            <!-- Custom Photo Sticker Upload -->
+            <div class="pt-2 border-t border-slate-200/60 dark:border-slate-700">
+                <label class="block font-semibold mb-2 text-xs text-slate-500">上傳自訂圖片貼圖 (自動調整為小圖示)</label>
+                <input type="file" id="sticker-upload-input" accept="image/*" class="hidden" onchange="uploadCustomSticker(event)">
+                <button onclick="document.getElementById('sticker-upload-input').click()" class="w-full py-2.5 rounded-2xl bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 font-medium text-xs border border-amber-200 hover:bg-amber-100 transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-image"></i>
+                    <span>從相簿上傳新貼圖</span>
+                </button>
+            </div>
+
+            <!-- Custom Stickers Library -->
+            <div id="custom-stickers-container" class="hidden pt-2 border-t border-slate-200/60">
+                <label class="block font-semibold mb-2 text-xs text-slate-500">您上傳的客製貼圖</label>
+                <div id="custom-stickers-grid" class="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
+                    <!-- User stickers loaded here -->
+                </div>
+            </div>
+
+            <div class="pt-2 flex justify-between">
+                <button onclick="removeStickerFromSelectedDate()" class="px-4 py-2 rounded-2xl bg-rose-100 text-rose-600 font-medium text-xs hover:bg-rose-200 transition">清除本日貼圖</button>
+                <button onclick="closeStickerModal()" class="px-4 py-2 rounded-2xl bg-slate-200 text-slate-700 font-medium text-xs hover:bg-slate-300 transition">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT APP ENGINE -->
+    <script>
+        // Default Pre-loaded User Data (All 22 Items Extracted from User Screenshots)
+        const INITIAL_TASKS = {
+            "2026-09-15": [{ id: "t15_1", title: "鋼琴課", category: "personal", time: "17:00", completed: true }],
+            "2026-09-16": [{ id: "t16_1", title: "完成英文文法16單元", category: "learning", time: "17:40", completed: true }],
+            "2026-09-17": [{ id: "t17_1", title: "完成17單元的文法（英文）", category: "learning", time: "17:20", completed: true }],
+            "2026-09-18": [{ id: "t18_1", title: "寫錄音稿", category: "learning", time: "06:40", completed: false }],
+            "2026-09-19": [{ id: "t19_1", title: "靈感紀錄（語文表達）", category: "learning", time: "", completed: false }],
+            "2026-09-20": [{ id: "t20_1", title: "鋼琴發表", category: "important", time: "14:20", completed: false }],
+            "2026-09-21": [{ id: "t21_1", title: "隔天要交語文表達", category: "learning", time: "", completed: false }],
+            "2026-09-22": [
+                { id: "t22_1", title: "鋼琴課", category: "personal", time: "", completed: false },
+                { id: "t22_2", title: "確認語文表達有沒有注音或錯字", category: "learning", time: "07:00", completed: false },
+                { id: "t22_3", title: "自然課任務繳交", category: "learning", time: "", completed: false }
+            ],
+            "2026-09-23": [{ id: "t23_1", title: "寫數學練習", category: "learning", time: "", completed: false }],
+            "2026-09-24": [{ id: "t24_1", title: "數學表單", category: "learning", time: "", completed: false }],
+            "2026-09-29": [{ id: "t29_1", title: "鋼琴課", category: "personal", time: "", completed: false }],
+            "2026-10-06": [{ id: "t06_1", title: "鋼琴課", category: "personal", time: "", completed: false }],
+            "2026-10-13": [{ id: "t13_1", title: "鋼琴課", category: "personal", time: "", completed: false }],
+            "2026-10-15": [{ id: "t15_2", title: "媽咪出國and哥哥（去）", category: "important", time: "", completed: false }],
+            "2026-10-16": [{ id: "t16_2", title: "媽咪出國and哥哥", category: "important", time: "", completed: false }],
+            "2026-10-17": [{ id: "t17_2", title: "媽咪出國and哥哥", category: "important", time: "", completed: false }],
+            "2026-10-18": [{ id: "t18_2", title: "媽咪出國and哥哥", category: "important", time: "", completed: false }],
+            "2026-10-19": [{ id: "t19_2", title: "媽咪出國and哥哥（回）", category: "important", time: "", completed: false }],
+            "2026-10-20": [{ id: "t20_2", title: "鋼琴課", category: "personal", time: "", completed: false }],
+            "2026-10-27": [{ id: "t27_1", title: "鋼琴課", category: "personal", time: "", completed: false }]
+        };
+
+        // App Global State
+        let state = {
+            currentYear: 2026,
+            currentMonth: 8, // 0-indexed: 8 = September
+            selectedDate: "2026-09-21",
+            activeTab: "month", // month, week, categories
+            tasks: {},
+            stickers: {}, // date -> emoji or base64 image
+            customStickerLib: [], // array of base64 images
+            categoryFilter: "all",
+            bgStyle: "light" // light, aurora, sunset, dark, mint, macaron, or custom URL
+        };
+
+        // Category Configuration
+        const CATEGORIES = {
+            important: { name: "重要", dot: "bg-red-500", border: "border-red-200", bg: "bg-red-50 dark:bg-red-950/30", text: "text-red-600 dark:text-red-400" },
+            learning: { name: "學業", dot: "bg-purple-500", border: "border-purple-200", bg: "bg-purple-50 dark:bg-purple-950/30", text: "text-purple-600 dark:text-purple-400" },
+            personal: { name: "個人", dot: "bg-emerald-500", border: "border-emerald-200", bg: "bg-emerald-50 dark:bg-emerald-950/30", text: "text-emerald-600 dark:text-emerald-400" },
+            work: { name: "工作", dot: "bg-blue-500", border: "border-blue-200", bg: "bg-blue-50 dark:bg-blue-950/30", text: "text-blue-600 dark:text-blue-400" },
+            other: { name: "其他", dot: "bg-amber-500", border: "border-amber-200", bg: "bg-amber-50 dark:bg-amber-950/30", text: "text-amber-600 dark:text-amber-400" }
+        };
+
+        // Initialize App on Window Load
+        window.onload = function() {
+            loadStateFromStorage();
+            renderCalendar();
+            renderSelectedDateAgenda();
+            applySavedBackground();
+        };
+
+        // Load or Initialize State
+        function loadStateFromStorage() {
+            const savedTasks = localStorage.getItem('ios_cal_tasks');
+            if (savedTasks) {
+                try { state.tasks = JSON.parse(savedTasks); } catch(e) { state.tasks = INITIAL_TASKS; }
+            } else {
+                state.tasks = JSON.parse(JSON.stringify(INITIAL_TASKS));
+                saveTasksToStorage();
+            }
+
+            const savedStickers = localStorage.getItem('ios_cal_stickers');
+            if (savedStickers) {
+                try { state.stickers = JSON.parse(savedStickers); } catch(e) { state.stickers = {}; }
+            }
+
+            const savedLib = localStorage.getItem('ios_cal_sticker_lib');
+            if (savedLib) {
+                try { state.customStickerLib = JSON.parse(savedLib); } catch(e) { state.customStickerLib = []; }
+            }
+
+            const savedBg = localStorage.getItem('ios_cal_bg');
+            if (savedBg) { state.bgStyle = savedBg; }
+        }
+
+        function saveTasksToStorage() {
+            localStorage.setItem('ios_cal_tasks', JSON.stringify(state.tasks));
+        }
+
+        function saveStickersToStorage() {
+            localStorage.setItem('ios_cal_stickers', JSON.stringify(state.stickers));
+            localStorage.setItem('ios_cal_sticker_lib', JSON.stringify(state.customStickerLib));
+        }
+
+        // --- CALENDAR RENDER ENGINE ---
+        function renderCalendar() {
+            const displayHeader = document.getElementById('current-month-display');
+            displayHeader.innerText = `${state.currentYear}年 ${state.currentMonth + 1}月`;
+
+            const grid = document.getElementById('calendar-grid');
+            grid.innerHTML = '';
+
+            const firstDay = new Date(state.currentYear, state.currentMonth, 1).getDay();
+            const daysInMonth = new Date(state.currentYear, state.currentMonth + 1, 0).getDate();
+            const daysInPrevMonth = new Date(state.currentYear, state.currentMonth, 0).getDate();
+
+            // Previous Month Leading Days
+            for (let i = firstDay - 1; i >= 0; i--) {
+                const dayNum = daysInPrevMonth - i;
+                const cell = document.createElement('div');
+                cell.className = "min-h-[70px] sm:min-h-[85px] p-1 rounded-2xl bg-slate-100/30 dark:bg-slate-800/20 text-slate-400/50 text-xs flex flex-col justify-between pointer-events-none";
+                cell.innerHTML = `<span>${dayNum}</span>`;
+                grid.appendChild(cell);
+            }
+
+            // Current Month Days
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${state.currentYear}-${String(state.currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const isSelected = (dateStr === state.selectedDate);
+                const dayTasks = state.tasks[dateStr] || [];
+                const daySticker = state.stickers[dateStr];
+
+                const cell = document.createElement('div');
+                cell.onclick = () => selectDate(dateStr);
+                
+                let activeStyle = isSelected 
+                    ? "ring-2 ring-blue-500 shadow-md bg-white dark:bg-slate-800" 
+                    : "glass-card hover:bg-white/90 dark:hover:bg-slate-800/90";
+
+                cell.className = `min-h-[75px] sm:min-h-[90px] p-1.5 rounded-2xl transition cursor-pointer flex flex-col justify-between relative overflow-hidden active:scale-95 ${activeStyle}`;
+
+                // Header inside cell (Day number + Sticker)
+                let stickerHTML = '';
+                if (daySticker) {
+                    if (daySticker.startsWith('data:image')) {
+                        stickerHTML = `<img src="${daySticker}" class="w-5 h-5 object-cover rounded-md shadow-xs">`;
+                    } else {
+                        stickerHTML = `<span class="text-sm">${daySticker}</span>`;
+                    }
+                }
+
+                let cellTop = `
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-xs ${isSelected ? 'text-blue-600 dark:text-blue-400' : ''}">${day}</span>
+                        ${stickerHTML}
+                    </div>
+                `;
+
+                // Task category dot indicators
+                let dotsHTML = '';
+                if (dayTasks.length > 0) {
+                    dotsHTML += `<div class="flex flex-wrap gap-1 mt-1">`;
+                    dayTasks.slice(0, 3).forEach(t => {
+                        const cat = CATEGORIES[t.category] || CATEGORIES.other;
+                        dotsHTML += `<span class="w-2 h-2 rounded-full ${cat.dot}"></span>`;
+                    });
+                    if (dayTasks.length > 3) {
+                        dotsHTML += `<span class="text-[9px] text-slate-400 font-bold">+${dayTasks.length - 3}</span>`;
+                    }
+                    dotsHTML += `</div>`;
+                }
+
+                // Mini title preview for first task
+                let taskPreview = '';
+                if (dayTasks.length > 0) {
+                    const firstTask = dayTasks[0];
+                    taskPreview = `<div class="text-[10px] truncate text-slate-600 dark:text-slate-300 font-medium mt-0.5 leading-tight">${firstTask.title}</div>`;
+                }
+
+                cell.innerHTML = `
+                    <div>
+                        ${cellTop}
+                        ${taskPreview}
+                    </div>
+                    ${dotsHTML}
+                `;
+
+                grid.appendChild(cell);
+            }
+        }
+
+        // Change Month Navigation
+        function changeMonth(delta) {
+            state.currentMonth += delta;
+            if (state.currentMonth > 11) {
+                state.currentMonth = 0;
+                state.currentYear++;
+            } else if (state.currentMonth < 0) {
+                state.currentMonth = 11;
+                state.currentYear--;
+            }
+            renderCalendar();
+        }
+
+        function goToToday() {
+            const today = new Date();
+            state.currentYear = today.getFullYear();
+            state.currentMonth = today.getMonth();
+            state.selectedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            renderCalendar();
+            renderSelectedDateAgenda();
+        }
+
+        function selectDate(dateStr) {
+            state.selectedDate = dateStr;
+            renderCalendar();
+            renderSelectedDateAgenda();
+        }
+
+        // Render Agenda Sheet for Selected Date
+        function renderSelectedDateAgenda() {
+            const title = document.getElementById('selected-date-title');
+            const stickerDisp = document.getElementById('selected-date-sticker-display');
+            const container = document.getElementById('selected-date-tasks');
+
+            const [y, m, d] = state.selectedDate.split('-');
+            title.innerText = `${y}年 ${parseInt(m)}月 ${parseInt(d)}日 事項明細`;
+
+            // Display Sticker
+            const currentSticker = state.stickers[state.selectedDate];
+            if (currentSticker) {
+                if (currentSticker.startsWith('data:image')) {
+                    stickerDisp.innerHTML = `<img src="${currentSticker}" class="w-7 h-7 object-cover rounded-lg shadow-sm border border-white">`;
+                } else {
+                    stickerDisp.innerHTML = currentSticker;
+                }
+            } else {
+                stickerDisp.innerHTML = '';
+            }
+
+            const tasks = state.tasks[state.selectedDate] || [];
+            if (tasks.length === 0) {
+                container.innerHTML = `
+                    <div class="py-6 text-center text-slate-400 text-xs">
+                        <i class="fa-regular fa-calendar-xmark text-2xl mb-1 block opacity-50"></i>
+                        本日無排定行程
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = tasks.map(t => {
+                const cat = CATEGORIES[t.category] || CATEGORIES.other;
+                return `
+                    <div class="flex items-center justify-between p-3 rounded-2xl ${cat.bg} border ${cat.border} transition hover:shadow-sm">
+                        <div class="flex items-center space-x-3 flex-1 min-w-0">
+                            <button onclick="toggleTaskStatus('${t.id}')" class="w-5 h-5 rounded-md border flex items-center justify-center transition ${t.completed ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-400 bg-white dark:bg-slate-800'}">
+                                ${t.completed ? '<i class="fa-solid fa-check text-xs"></i>' : ''}
+                            </button>
+                            <div class="flex-1 min-w-0">
+                                <span class="font-medium text-xs sm:text-sm ${t.completed ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100'} block truncate">
+                                    ${t.title}
+                                </span>
+                                <div class="flex items-center space-x-2 text-[10px] text-slate-500 mt-0.5">
+                                    <span class="px-1.5 py-0.5 rounded-md font-semibold ${cat.text} bg-white/60 dark:bg-slate-800/60">${cat.name}</span>
+                                    ${t.time ? `<span><i class="fa-regular fa-clock mr-1"></i>${t.time}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-1 ml-2">
+                            <button onclick="editTask('${t.id}')" class="w-7 h-7 rounded-xl hover:bg-white/80 dark:hover:bg-slate-700 text-slate-500 flex items-center justify-center transition">
+                                <i class="fa-solid fa-pen text-xs"></i>
+                            </button>
+                            <button onclick="deleteTask('${t.id}')" class="w-7 h-7 rounded-xl hover:bg-rose-100 text-rose-500 flex items-center justify-center transition">
+                                <i class="fa-solid fa-trash text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Task Status Toggle
+        function toggleTaskStatus(taskId) {
+            for (let date in state.tasks) {
+                const idx = state.tasks[date].findIndex(t => t.id === taskId);
+                if (idx !== -1) {
+                    state.tasks[date][idx].completed = !state.tasks[date][idx].completed;
+                    saveTasksToStorage();
+                    renderCalendar();
+                    renderSelectedDateAgenda();
+                    if (state.activeTab === 'week') renderWeeklyView();
+                    if (state.activeTab === 'categories') renderCategoryView();
+                    break;
+                }
+            }
+        }
+
+        // Delete Task
+        function deleteTask(taskId) {
+            for (let date in state.tasks) {
+                const idx = state.tasks[date].findIndex(t => t.id === taskId);
+                if (idx !== -1) {
+                    state.tasks[date].splice(idx, 1);
+                    if (state.tasks[date].length === 0) delete state.tasks[date];
+                    saveTasksToStorage();
+                    renderCalendar();
+                    renderSelectedDateAgenda();
+                    if (state.activeTab === 'week') renderWeeklyView();
+                    if (state.activeTab === 'categories') renderCategoryView();
+                    break;
+                }
+            }
+        }
+
+        // Tab Switching Engine
+        function switchTab(tabName) {
+            state.activeTab = tabName;
+            
+            ['month', 'week', 'categories'].forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                const view = document.getElementById(`view-${t}`);
+                if (t === tabName) {
+                    btn.className = "flex-1 py-2 rounded-xl text-center transition-all duration-200 shadow-sm bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 font-semibold";
+                    view.classList.remove('hidden');
+                } else {
+                    btn.className = "flex-1 py-2 rounded-xl text-center transition-all duration-200 text-slate-600 dark:text-slate-400 hover:text-slate-900";
+                    view.classList.add('hidden');
+                }
+            });
+
+            if (tabName === 'week') renderWeeklyView();
+            if (tabName === 'categories') renderCategoryView();
+        }
+
+        // --- WEEKLY VIEW ENGINE ---
+        function renderWeeklyView() {
+            const container = document.getElementById('weekly-tasks-container');
+            const label = document.getElementById('week-range-label');
+            
+            // Get current selected date's week bounds (Mon - Sun)
+            const curr = new Date(state.selectedDate);
+            const first = curr.getDate() - curr.getDay() + (curr.getDay() === 0 ? -6 : 1); 
+            const monday = new Date(curr.setDate(first));
+
+            const weekDays = [];
+            for (let i = 0; i < 7; i++) {
+                const nextDay = new Date(monday);
+                nextDay.setDate(monday.getDate() + i);
+                const dateStr = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`;
+                weekDays.push({ dateStr, dayObj: nextDay });
+            }
+
+            label.innerText = `${weekDays[0].dateStr.slice(5)} ~ ${weekDays[6].dateStr.slice(5)}`;
+
+            const dayNames = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+
+            container.innerHTML = weekDays.map(item => {
+                const tasks = state.tasks[item.dateStr] || [];
+                const dayName = dayNames[item.dayObj.getDay()];
+                const isToday = item.dateStr === state.selectedDate;
+
+                let tasksHTML = tasks.length === 0 
+                    ? `<div class="text-[11px] text-slate-400 py-1">本日尚無排定行程</div>`
+                    : tasks.map(t => {
+                        const cat = CATEGORIES[t.category] || CATEGORIES.other;
+                        return `
+                            <div class="flex items-center justify-between p-2 rounded-xl bg-white/70 dark:bg-slate-800/70 border ${cat.border} text-xs">
+                                <div class="flex items-center space-x-2">
+                                    <button onclick="toggleTaskStatus('${t.id}')" class="w-4 h-4 rounded border flex items-center justify-center ${t.completed ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300'}">
+                                        ${t.completed ? '<i class="fa-solid fa-check text-[10px]"></i>' : ''}
+                                    </button>
+                                    <span class="${t.completed ? 'line-through text-slate-400' : 'text-slate-800 dark:text-slate-100'} font-medium">
+                                        ${t.title}
+                                    </span>
+                                </div>
+                                <span class="text-[10px] px-1.5 py-0.5 rounded ${cat.text} bg-slate-100 dark:bg-slate-700">${cat.name} ${t.time || ''}</span>
+                            </div>
+                        `;
+                    }).join('');
+
+                return `
+                    <div class="p-3 rounded-2xl glass-card border ${isToday ? 'border-blue-400 shadow-sm' : 'border-white/40'} space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-xs flex items-center">
+                                ${item.dateStr} ${dayName}
+                                ${isToday ? '<span class="ml-2 text-[10px] bg-blue-500 text-white px-1.5 py-0.2 rounded-full">Selected</span>' : ''}
+                            </span>
+                            <button onclick="openTaskModalWithCustomDate('${item.dateStr}')" class="text-xs text-blue-600 font-medium hover:underline">+ 新增</button>
+                        </div>
+                        <div class="space-y-1.5">
+                            ${tasksHTML}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- CATEGORY SUMMARY ENGINE ---
+        function renderCategoryView() {
+            const cardsContainer = document.getElementById('category-summary-cards');
+            const accordionContainer = document.getElementById('category-accordion-list');
+
+            // Calculate stats
+            let stats = {
+                important: { total: 0, completed: 0 },
+                learning: { total: 0, completed: 0 },
+                personal: { total: 0, completed: 0 }
+            };
+
+            let allTaskList = [];
+
+            for (let date in state.tasks) {
+                state.tasks[date].forEach(t => {
+                    if (stats[t.category]) {
+                        stats[t.category].total++;
+                        if (t.completed) stats[t.category].completed++;
+                    }
+                    allTaskList.push({ ...t, date });
+                });
+            }
+
+            // Render Stat Cards
+            cardsContainer.innerHTML = Object.keys(stats).map(catKey => {
+                const cat = CATEGORIES[catKey];
+                const data = stats[catKey];
+                const pct = data.total === 0 ? 0 : Math.round((data.completed / data.total) * 100);
+
+                return `
+                    <div class="glass-panel p-4 rounded-3xl shadow-ios-glass space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-sm flex items-center">
+                                <span class="w-3 h-3 rounded-full ${cat.dot} mr-2"></span>
+                                ${cat.name}專區與進度
+                            </span>
+                            <span class="text-xs font-bold ${cat.text}">${pct}%</span>
+                        </div>
+                        <div class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                            <div class="${cat.dot} h-full transition-all duration-500" style="width: ${pct}%"></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-center text-xs pt-1">
+                            <div class="p-2 rounded-2xl bg-white/60 dark:bg-slate-800/60">
+                                <div class="text-slate-400 text-[10px]">總事項</div>
+                                <div class="font-bold text-base">${data.total}</div>
+                            </div>
+                            <div class="p-2 rounded-2xl bg-white/60 dark:bg-slate-800/60">
+                                <div class="text-slate-400 text-[10px]">已完成</div>
+                                <div class="font-bold text-base text-emerald-600">${data.completed}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Filter task list
+            let filteredTasks = allTaskList.filter(t => {
+                if (state.categoryFilter === 'pending') return !t.completed;
+                if (state.categoryFilter === 'completed') return t.completed;
+                return true;
+            });
+
+            // Sort by date ascending
+            filteredTasks.sort((a, b) => a.date.localeCompare(b.date));
+
+            accordionContainer.innerHTML = filteredTasks.map(t => {
+                const cat = CATEGORIES[t.category] || CATEGORIES.other;
+                return `
+                    <div class="flex items-center justify-between p-3 rounded-2xl glass-card border ${cat.border}">
+                        <div class="flex items-center space-x-3">
+                            <button onclick="toggleTaskStatus('${t.id}')" class="w-5 h-5 rounded-md border flex items-center justify-center ${t.completed ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-400 bg-white'}">
+                                ${t.completed ? '<i class="fa-solid fa-check text-xs"></i>' : ''}
+                            </button>
+                            <div>
+                                <div class="text-xs font-bold ${t.completed ? 'line-through text-slate-400' : ''}">${t.title}</div>
+                                <div class="text-[10px] text-slate-400">${t.date} ${t.time || ''}</div>
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-lg ${cat.bg} ${cat.text}">${cat.name}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterCategoryList(mode) {
+            state.categoryFilter = mode;
+            ['all', 'pending', 'completed'].forEach(m => {
+                const btn = document.getElementById(`cat-filter-${m}`);
+                if (m === mode) {
+                    btn.className = "px-3 py-1.5 rounded-xl bg-slate-800 dark:bg-slate-200 dark:text-slate-900 text-white font-medium";
+                } else {
+                    btn.className = "px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium";
+                }
+            });
+            renderCategoryView();
+        }
+
+        // --- TASK MODAL ACTIONS ---
+        function openTaskModal() {
+            document.getElementById('task-id').value = '';
+            document.getElementById('task-input-title').value = '';
+            document.getElementById('task-input-date').value = state.selectedDate;
+            document.getElementById('task-input-time').value = '';
+            document.getElementById('modal-task-title').innerText = '新增行程 / 事項';
+            document.getElementById('modal-task').classList.remove('hidden');
+        }
+
+        function openTaskModalWithDate() {
+            openTaskModal();
+        }
+
+        function openTaskModalWithCustomDate(dStr) {
+            state.selectedDate = dStr;
+            openTaskModal();
+        }
+
+        function editTask(taskId) {
+            for (let date in state.tasks) {
+                const t = state.tasks[date].find(item => item.id === taskId);
+                if (t) {
+                    document.getElementById('task-id').value = t.id;
+                    document.getElementById('task-input-title').value = t.title;
+                    document.getElementById('task-input-date').value = date;
+                    document.getElementById('task-input-time').value = t.time || '';
+                    document.getElementById('task-input-category').value = t.category;
+                    document.getElementById('modal-task-title').innerText = '編輯行程 / 事項';
+                    document.getElementById('modal-task').classList.remove('hidden');
+                    break;
+                }
+            }
+        }
+
+        function closeTaskModal() {
+            document.getElementById('modal-task').classList.add('hidden');
+        }
+
+        function saveTask(e) {
+            e.preventDefault();
+            const id = document.getElementById('task-id').value || `task_${Date.now()}`;
+            const title = document.getElementById('task-input-title').value.trim();
+            const date = document.getElementById('task-input-date').value;
+            const time = document.getElementById('task-input-time').value;
+            const category = document.getElementById('task-input-category').value;
+
+            if (!title || !date) return;
+
+            // Remove existing if editing
+            for (let d in state.tasks) {
+                state.tasks[d] = state.tasks[d].filter(t => t.id !== id);
+                if (state.tasks[d].length === 0) delete state.tasks[d];
+            }
+
+            if (!state.tasks[date]) state.tasks[date] = [];
+            state.tasks[date].push({ id, title, category, time, completed: false });
+
+            saveTasksToStorage();
+            closeTaskModal();
+            renderCalendar();
+            renderSelectedDateAgenda();
+            if (state.activeTab === 'week') renderWeeklyView();
+            if (state.activeTab === 'categories') renderCategoryView();
+        }
+
+        // --- BACKGROUND MANAGER ---
+        function openBackgroundModal() {
+            document.getElementById('modal-background').classList.remove('hidden');
+        }
+
+        function closeBackgroundModal() {
+            document.getElementById('modal-background').classList.add('hidden');
+        }
+
+        function applyBgPreset(presetKey) {
+            state.bgStyle = presetKey;
+            localStorage.setItem('ios_cal_bg', presetKey);
+            applySavedBackground();
+        }
+
+        function uploadCustomBackground(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                state.bgStyle = `url(${e.target.result})`;
+                localStorage.setItem('ios_cal_bg', state.bgStyle);
+                applySavedBackground();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function applySavedBackground() {
+            const layer = document.getElementById('app-bg-layer');
+            const bg = state.bgStyle || 'light';
+
+            if (bg.startsWith('url')) {
+                layer.className = '';
+                layer.style.backgroundImage = bg;
+            } else {
+                layer.style.backgroundImage = '';
+                if (bg === 'light') layer.className = "bg-gradient-to-br from-slate-100 via-sky-50 to-indigo-100";
+                if (bg === 'aurora') layer.className = "bg-gradient-to-br from-teal-200 via-indigo-200 to-pink-200";
+                if (bg === 'sunset') layer.className = "bg-gradient-to-br from-rose-300 via-purple-300 to-indigo-400";
+                if (bg === 'dark') layer.className = "bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900";
+                if (bg === 'mint') layer.className = "bg-gradient-to-br from-emerald-100 via-teal-100 to-cyan-200";
+                if (bg === 'macaron') layer.className = "bg-gradient-to-br from-amber-100 via-pink-100 to-purple-100";
+            }
+        }
+
+        // --- STICKER SYSTEM ---
+        function openStickerModal() {
+            renderCustomStickerLibrary();
+            document.getElementById('modal-sticker').classList.remove('hidden');
+        }
+
+        function openStickerPickerForSelectedDate() {
+            openStickerModal();
+        }
+
+        function closeStickerModal() {
+            document.getElementById('modal-sticker').classList.add('hidden');
+        }
+
+        function applySticker(stickerVal) {
+            state.stickers[state.selectedDate] = stickerVal;
+            saveStickersToStorage();
+            closeStickerModal();
+            renderCalendar();
+            renderSelectedDateAgenda();
+        }
+
+        function removeStickerFromSelectedDate() {
+            delete state.stickers[state.selectedDate];
+            saveStickersToStorage();
+            closeStickerModal();
+            renderCalendar();
+            renderSelectedDateAgenda();
+        }
+
+        function uploadCustomSticker(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // Scale down using HTML5 Canvas to 120x120 for optimal performance
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = 120;
+                    canvas.height = 120;
+                    ctx.drawImage(img, 0, 0, 120, 120);
+                    const resizedDataUrl = canvas.toDataURL('image/png');
+
+                    state.customStickerLib.push(resizedDataUrl);
+                    saveStickersToStorage();
+                    renderCustomStickerLibrary();
+                    applySticker(resizedDataUrl);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function renderCustomStickerLibrary() {
+            const container = document.getElementById('custom-stickers-container');
+            const grid = document.getElementById('custom-stickers-grid');
+
+            if (state.customStickerLib.length === 0) {
+                container.classList.add('hidden');
+                return;
+            }
+
+            container.classList.remove('hidden');
+            grid.innerHTML = state.customStickerLib.map((stk, idx) => `
+                <div class="relative group">
+                    <img onclick="applySticker('${stk}')" src="${stk}" class="w-10 h-10 object-cover rounded-xl border border-slate-300 hover:scale-105 cursor-pointer transition shadow-xs">
+                    <button onclick="deleteCustomStickerLib(${idx})" class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center text-[8px]">×</button>
+                </div>
+            `).join('');
+        }
+
+        function deleteCustomStickerLib(idx) {
+            state.customStickerLib.splice(idx, 1);
+            saveStickersToStorage();
+            renderCustomStickerLibrary();
+        }
+
+        // --- MENU & BACKUP ---
+        function toggleActionMenu() {
+            const menu = document.getElementById('action-menu');
+            menu.classList.toggle('hidden');
+        }
+
+        function exportDataData() {
+            const backupData = {
+                tasks: state.tasks,
+                stickers: state.stickers,
+                version: "2.0"
+            };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `calendar_backup_${state.selectedDate}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function triggerImportJSON() {
+            document.getElementById('json-file-input').click();
+        }
+
+        function importDataFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed.tasks || typeof parsed === 'object') {
+                        state.tasks = parsed.tasks || parsed;
+                        if (parsed.stickers) state.stickers = parsed.stickers;
+                        saveTasksToStorage();
+                        saveStickersToStorage();
+                        renderCalendar();
+                        renderSelectedDateAgenda();
+                        alert('🎉 JSON 備份資料已成功載入！');
+                    }
+                } catch(err) {
+                    alert('⚠️ 檔案格式不正確，請確認上傳有效的 JSON 備份檔。');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function resetToDefaultData() {
+            if (confirm('確定要將資料重設為原始的 22 筆行程嗎？')) {
+                state.tasks = JSON.parse(JSON.stringify(INITIAL_TASKS));
+                saveTasksToStorage();
+                renderCalendar();
+                renderSelectedDateAgenda();
+            }
+        }
+    </script>
+</body>
+</html>
